@@ -1,0 +1,78 @@
+name: hefesto-ideas
+x-pg: &pg
+  PGHOST: ${DB_HOST:?Configurar host}
+  PGPORT: "5432"
+  PGDATABASE: postgres
+  PGUSER: ${DB_USER:-fider_app}
+  PGPASSWORD: ${DB_PASSWORD:?Configurar clave}
+  PGSSLMODE: verify-full
+  PGSSLROOTCERT: /certs/ca.crt
+  PGCONNECT_TIMEOUT: "15"
+services:
+  preflight:
+    image: postgres:17-alpine
+    restart: "no"
+    environment:
+      <<: *pg
+      SUPABASE_DEDICATED_CONFIRMED: ${SUPABASE_DEDICATED_CONFIRMED:-false}
+      SUPABASE_DATA_API_DISABLED: ${SUPABASE_DATA_API_DISABLED:-false}
+      HEFESTO_BOOTSTRAP: "false"
+    volumes:
+      - ./certs:/certs:ro
+      - ./ops:/opt/hefesto:ro
+    entrypoint: [sh, /opt/hefesto/preflight.sh]
+  app:
+    image: getfider/fider:v0.38.2@sha256:25d17db73c3d86292d75b29cda296343bbce8e6d3b313e7661525f30eb6d946c
+    restart: unless-stopped
+    depends_on:
+      preflight:
+        condition: service_completed_successfully
+    command: [sh, /opt/hefesto/start.sh]
+    environment:
+      BASE_URL: ${BASE_URL:-https://ideas.example.com}
+      HOST_MODE: single
+      DATABASE_URL: postgresql://${DB_USER:-fider_app}:${DB_PASSWORD}@${DB_HOST}:5432/postgres?sslmode=verify-full&sslrootcert=/certs/ca.crt
+      DATABASE_MAX_OPEN_CONNS: "4"
+      DATABASE_MAX_IDLE_CONNS: "2"
+      JWT_SECRET: ${JWT_SECRET:?Generar secreto}
+      BLOB_STORAGE: sql
+      SIGNUP_DISABLED: "true"
+      SSL_AUTO: "false"
+      LOG_LEVEL: INFO
+      LOG_SQL: "false"
+      LOG_FILE: "false"
+      EMAIL: smtp
+      EMAIL_NOREPLY: ${EMAIL_NOREPLY:-noreply@example.com}
+      EMAIL_SMTP_HOST: ${SMTP_HOST:-smtp.example.com}
+      EMAIL_SMTP_PORT: "465"
+      EMAIL_SMTP_USERNAME: ${SMTP_USERNAME:-}
+      EMAIL_SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      EMAIL_SMTP_ENABLE_STARTTLS: "false"
+      EMAIL_SMTP_ENABLE_IMPLICIT_TLS: "true"
+      HEFESTO_BOOTSTRAP: "false"
+      SMTP_READY: ${SMTP_READY:-false}
+      INITIAL_SETUP_COMPLETE: ${INITIAL_SETUP_COMPLETE:-false}
+      HEFESTO_DB_HOST: ${DB_HOST}
+      HEFESTO_DB_USER: ${DB_USER:-fider_app}
+      HEFESTO_DB_PASSWORD: ${DB_PASSWORD}
+    expose: ["3000"]
+    volumes:
+      - ./certs:/certs:ro
+      - ./ops:/opt/hefesto:ro
+    healthcheck:
+      test: [CMD, /app/fider, ping]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 120s
+    logging:
+      options:
+        max-size: 10m
+        max-file: "3"
+  dbtools:
+    image: postgres:17-alpine
+    profiles: [tools]
+    environment: *pg
+    volumes:
+      - ./certs:/certs:ro
+      - ./ops:/opt/hefesto:ro

@@ -1,0 +1,1 @@
+Copie el certificado CA vigente del proyecto Supabase como ca.crt, legible 0644 en directorio 0755. Fider usa lib/pq con sslmode=verify-full y sslrootcert. No se incluyen certificados ni claves reales.
