@@ -141,11 +141,14 @@ for svc in "${SERVICES[@]}"; do
 done
 
 # Punto 3 (supabase-pg): DB_NAME y DB_SSLMODE parametrizables.
-if ! printf '%s' "$RENDER_JSON" | grep -q "mvp_prueba"; then
-  ERRORS+=("supabase-pg: DB_NAME=mvp_prueba no aparece en el render")
+# Comprobamos contra el DSN real (services.app.environment.DATABASE_URL)
+# en vez de buscar substrings en todo el render: cualquier otro valor que
+# contenga la palabra 'disable' o 'mvp_prueba' daria un falso verde.
+if ! printf '%s' "$RENDER_JSON" | jq -e '.services.app.environment.DATABASE_URL | test("sslmode=disable")' >/dev/null 2>&1; then
+  ERRORS+=("supabase-pg: DATABASE_URL no contiene sslmode=disable")
 fi
-if ! printf '%s' "$RENDER_JSON" | grep -q "disable"; then
-  ERRORS+=("supabase-pg: DB_SSLMODE=disable no aparece en el render")
+if ! printf '%s' "$RENDER_JSON" | jq -e '.services.app.environment.DATABASE_URL | test("/mvp_prueba\\?")' >/dev/null 2>&1; then
+  ERRORS+=("supabase-pg: DATABASE_URL no contiene /mvp_prueba?")
 fi
 
 if [ "${#ERRORS[@]}" -gt 0 ]; then
