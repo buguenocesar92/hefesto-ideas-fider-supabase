@@ -44,6 +44,10 @@ trap 'rm -f "$TMP_ENV"' EXIT
         val="mvp_prueba" ;;
       DB_SSLMODE)
         val="disable" ;;
+      DB_SSLROOTCERT_QS)
+        # Coolify con sslmode distinto de verify-full define DB_SSLROOTCERT_QS vacio
+        # para quitar sslrootcert del DSN (certs/*.crt esta en .gitignore).
+        val="" ;;
     esac
     echo "$v=$val"
   done
@@ -144,11 +148,16 @@ done
 # Comprobamos contra el DSN real (services.app.environment.DATABASE_URL)
 # en vez de buscar substrings en todo el render: cualquier otro valor que
 # contenga la palabra 'disable' o 'mvp_prueba' daria un falso verde.
+# Ademas, con DB_SSLMODE=disable el DSN no debe llevar sslrootcert porque
+# certs/*.crt esta en .gitignore y no existe en el repo publicado.
 if ! printf '%s' "$RENDER_JSON" | jq -e '.services.app.environment.DATABASE_URL | test("sslmode=disable")' >/dev/null 2>&1; then
   ERRORS+=("supabase-pg: DATABASE_URL no contiene sslmode=disable")
 fi
 if ! printf '%s' "$RENDER_JSON" | jq -e '.services.app.environment.DATABASE_URL | test("/mvp_prueba\\?")' >/dev/null 2>&1; then
   ERRORS+=("supabase-pg: DATABASE_URL no contiene /mvp_prueba?")
+fi
+if printf '%s' "$RENDER_JSON" | jq -e '.services.app.environment.DATABASE_URL | test("sslrootcert")' >/dev/null 2>&1; then
+  ERRORS+=("supabase-pg: DATABASE_URL no debe contener sslrootcert con DB_SSLMODE=disable")
 fi
 
 if [ "${#ERRORS[@]}" -gt 0 ]; then
