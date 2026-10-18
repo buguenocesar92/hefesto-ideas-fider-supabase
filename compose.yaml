@@ -1,11 +1,10 @@
-name: hefesto-ideas
 x-pg: &pg
   PGHOST: ${DB_HOST:?Configurar host}
   PGPORT: "5432"
-  PGDATABASE: postgres
+  PGDATABASE: ${DB_NAME:-postgres}
   PGUSER: ${DB_USER:-fider_app}
   PGPASSWORD: ${DB_PASSWORD:?Configurar clave}
-  PGSSLMODE: verify-full
+  PGSSLMODE: ${DB_SSLMODE:-verify-full}
   PGSSLROOTCERT: /certs/ca.crt
   PGCONNECT_TIMEOUT: "15"
 services:
@@ -31,7 +30,7 @@ services:
     environment:
       BASE_URL: ${BASE_URL:-https://ideas.example.com}
       HOST_MODE: single
-      DATABASE_URL: postgresql://${DB_USER:-fider_app}:${DB_PASSWORD}@${DB_HOST}:5432/postgres?sslmode=verify-full&sslrootcert=/certs/ca.crt
+      DATABASE_URL: postgresql://${DB_USER:-fider_app}:${DB_PASSWORD}@${DB_HOST}:5432/${DB_NAME:-postgres}?sslmode=${DB_SSLMODE:-verify-full}&sslrootcert=/certs/ca.crt
       DATABASE_MAX_OPEN_CONNS: "4"
       DATABASE_MAX_IDLE_CONNS: "2"
       JWT_SECRET: ${JWT_SECRET:?Generar secreto}
