@@ -1,14 +1,12 @@
 #!/usr/bin/env bash
 # Verifica que el compose principal cumple el contrato Coolify del MVP Hefesto.
-# Reglas: ver .superpowers/minimax/coolify/plan.md (contrato comun).
+# Reglas: sin ports/container_name/capacidades del host, sin name fijo,
+# DB_NAME y DB_SSLMODE parametrizables.
 
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 COMPOSE="$ROOT/compose.yaml"
-LOG_DIR="$ROOT/.superpowers/minimax/coolify"
-mkdir -p "$LOG_DIR"
-LOG="$LOG_DIR/verificacion.txt"
 
 if ! command -v docker >/dev/null 2>&1; then
   echo "FAIL: docker no esta instalado" >&2
@@ -19,13 +17,11 @@ if ! command -v jq >/dev/null 2>&1; then
   exit 1
 fi
 
-log() { printf '%s\n' "$*" | tee -a "$LOG"; }
-err() { printf 'FAIL: %s\n' "$*" | tee -a "$LOG" >&2; }
+log() { printf '%s\n' "$*"; }
+err() { printf 'FAIL: %s\n' "$*" >&2; }
 
-{
-  echo "===== coolify-check $(date -Iseconds) ====="
-  echo "compose: $COMPOSE"
-} >> "$LOG"
+echo "===== coolify-check $(date -Iseconds) ====="
+echo "compose: $COMPOSE"
 
 # Extraer todas las variables ${VAR}, ${VAR:-default} y ${VAR:?error} del compose.
 mapfile -t VARS < <(grep -oE '\$\{[A-Z_][A-Z0-9_]*(:?[?]?[^}]*)?\}' "$COMPOSE" \
@@ -56,25 +52,26 @@ log "env temporal generado en $TMP_ENV"
 
 # Renderizar el compose. Aislar stderr para no contaminar el JSON con warnings.
 DOCKER_ERR="$(mktemp)"
-trap 'rm -f "$TMP_ENV" "$DOCKER_ERR"' EXIT
+RENDER_JSON_FILE="$(mktemp)"
+trap 'rm -f "$TMP_ENV" "$DOCKER_ERR" "$RENDER_JSON_FILE"' EXIT
 if ! RENDER_JSON="$(docker compose --project-directory "$ROOT" -f "$COMPOSE" --env-file "$TMP_ENV" config --format json 2>"$DOCKER_ERR")"; then
   err "docker compose config fallo:"
-  tee -a "$LOG" < "$DOCKER_ERR" >&2
+  cat "$DOCKER_ERR" >&2
   exit 1
 fi
 if [ -s "$DOCKER_ERR" ]; then
   log "--- stderr de docker compose config ---"
-  tee -a "$LOG" < "$DOCKER_ERR" >&2
+  cat "$DOCKER_ERR" >&2
   log "--- fin stderr ---"
 fi
 if ! printf '%s' "$RENDER_JSON" | jq -e . >/dev/null 2>&1; then
   err "la salida de docker compose config no es JSON valido"
-  echo "$RENDER_JSON" | tee -a "$LOG" | head -c 500 >&2
+  printf '%s' "$RENDER_JSON" | head -c 500 >&2
   echo >&2
   exit 1
 fi
-echo "$RENDER_JSON" > "$LOG_DIR/last-render.json"
-log "render json: $LOG_DIR/last-render.json"
+printf '%s' "$RENDER_JSON" > "$RENDER_JSON_FILE"
+log "render json: $RENDER_JSON_FILE"
 
 ERRORS=()
 
@@ -155,7 +152,7 @@ if [ "${#ERRORS[@]}" -gt 0 ]; then
   {
     echo "incumplimientos: ${#ERRORS[@]}"
     for e in "${ERRORS[@]}"; do echo "  - $e"; done
-  } | tee -a "$LOG" >&2
+  } >&2
   exit 1
 fi
 
