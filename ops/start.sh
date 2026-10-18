@@ -12,7 +12,6 @@ if [ "${HEFESTO_BOOTSTRAP:-false}" != true ]; then
       [ "$EMAIL_SMTP_ENABLE_IMPLICIT_TLS" = true ] || { echo 'El kit productivo requiere TLS implicito SMTP'; exit 1; }
       ;;
     *)
-      export EMAIL=null
       ;;
   esac
   case "$BASE_URL" in https://*) ;; *) echo 'Produccion requiere URL HTTPS'; exit 1;; esac
