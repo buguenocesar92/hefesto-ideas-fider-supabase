@@ -1,0 +1,56 @@
+{
+  "software": "hefesto-ideas",
+  "version": "0.38.2",
+  "database": "supabase-postgresql",
+  "piezas": [
+    "public.dump"
+  ],
+  "requiere": [
+    "app"
+  ],
+  "arranca": [
+    "app"
+  ],
+  "pasos": [
+    [
+      "stop",
+      "app"
+    ],
+    [
+      "pieza",
+      "public.dump"
+    ]
+  ],
+  "comandos": {
+    "public.dump": [
+      "run",
+      "--rm",
+      "--no-deps",
+      "-T",
+      "--entrypoint",
+      "pg_dump",
+      "dbtools",
+      "--format=custom",
+      "--schema=public",
+      "--no-owner",
+      "--no-acl"
+    ]
+  },
+  "env_requeridas": [
+    "BASE_URL",
+    "DB_HOST",
+    "DB_USER",
+    "DB_PASSWORD",
+    "JWT_SECRET",
+    "SMTP_HOST",
+    "SMTP_USERNAME",
+    "SMTP_PASSWORD"
+  ],
+  "env_secretas": [
+    "DB_PASSWORD",
+    "JWT_SECRET",
+    "SMTP_PASSWORD"
+  ],
+  "env_min_len": 32,
+  "env_reglas": []
+}
